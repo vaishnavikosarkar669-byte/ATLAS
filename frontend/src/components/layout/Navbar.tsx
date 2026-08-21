@@ -31,7 +31,7 @@ export function Navbar() {
           <span className="leading-tight">
             <span className="block font-display text-[19px] font-extrabold tracking-tight text-ink">ATLAS</span>
             <span className="hidden text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted sm:block">
-              Explore. Plan. Experience.
+              Where Travels Meets AI
             </span>
           </span>
         </Link>

@@ -74,17 +74,17 @@ export const restaurants: Restaurant[] = [
 },
 {
   id: 'r6',
-  name: 'Sakura Izakaya',
+  name: 'Bombay Canteen',
   image: IMAGES.foodFine,
-  cuisine: 'Japanese',
-  city: 'Gion, Kyoto',
+  cuisine: 'Modern Indian',
+  city: 'Lower Parel, Mumbai',
   rating: 4.9,
   reviews: 980,
   pricePerPerson: 2600,
   distanceKm: 1.1,
   tags: ['Fine dining', 'Local food'],
-  aiReason: 'Top-rated near your Kyoto stay with English menus available.',
-  insight: 'Small counter seating — reviewers advise booking two weeks ahead.'
+  aiReason: 'Top-rated near your Mumbai stay with great ambience.',
+  insight: 'Highly recommended to book ahead for weekend dinners.'
 }];
 
 
@@ -130,9 +130,9 @@ export const activities: Activity[] = [
 },
 {
   id: 'a4',
-  name: 'Fushimi Inari Early Access',
-  image: IMAGES.kyoto,
-  location: 'Kyoto, Japan',
+  name: 'Gateway of India Early Access',
+  image: IMAGES.mumbai,
+  location: 'Mumbai, India',
   category: 'Attractions',
   rating: 4.9,
   reviews: 8740,
@@ -156,27 +156,27 @@ export const activities: Activity[] = [
 },
 {
   id: 'a6',
-  name: 'Desert Dune Safari',
-  image: IMAGES.dubai,
-  location: 'Al Marmoom, Dubai',
+  name: 'Sundown Cruise',
+  image: IMAGES.kolkata,
+  location: 'Hooghly River, Kolkata',
   category: 'Adventure',
   rating: 4.5,
   reviews: 6120,
-  price: 4200,
-  duration: '5 hrs',
-  hours: '15:00 – 21:00',
-  aiReason: 'Family-friendly operator with child seats, matching your accessibility needs.'
+  price: 2200,
+  duration: '3 hrs',
+  hours: '16:00 – 19:00',
+  aiReason: 'Family-friendly operator with seating, matching your accessibility needs.'
 },
 {
   id: 'a7',
-  name: 'Rice Terrace Cycle Ride',
-  image: IMAGES.bali,
-  location: 'Ubud, Bali',
+  name: 'Tea Garden Walk',
+  image: IMAGES.mussoorie,
+  location: 'Mussoorie, India',
   category: 'Nature',
   rating: 4.7,
   reviews: 2280,
-  price: 1600,
-  duration: '4 hrs',
+  price: 600,
+  duration: '2 hrs',
   hours: '06:30 – 12:00',
   aiReason: 'Fits your nature interest and the cooler part of the day.'
 },
@@ -210,13 +210,13 @@ export const trips: Trip[] = [
 },
 {
   id: 't2',
-  destination: 'Kyoto',
-  country: 'Japan',
-  image: IMAGES.kyoto,
+  destination: 'Mumbai',
+  country: 'India',
+  image: IMAGES.mumbai,
   startDate: '2026-11-04',
   endDate: '2026-11-10',
   travelers: 2,
-  budget: 260000,
+  budget: 45000,
   status: 'upcoming',
   progress: 35
 },
@@ -273,11 +273,11 @@ export const bookings: Booking[] = [
 {
   id: 'b2',
   reference: 'ATL-3D8P77',
-  title: 'Kyoto · Machiya Boutique Stay',
+  title: 'Mumbai · Marine Drive Stay',
   type: 'Hotel',
-  image: IMAGES.kyoto,
+  image: IMAGES.mumbai,
   date: '2026-11-04',
-  price: 96500,
+  price: 45000,
   status: 'upcoming',
   travelers: 2
 },
@@ -306,11 +306,11 @@ export const bookings: Booking[] = [
 {
   id: 'b5',
   reference: 'ATL-6B9X30',
-  title: 'Dubai · Return Flight',
+  title: 'Kolkata · Return Flight',
   type: 'Flight',
-  image: IMAGES.dubai,
+  image: IMAGES.kolkata,
   date: '2026-01-18',
-  price: 38400,
+  price: 8400,
   status: 'cancelled',
   travelers: 1
 }];
@@ -368,11 +368,11 @@ export const lostFoundItems: LostFoundItem[] = [
 
 
 export const savedPlaces: SavedPlace[] = [
-{ id: 's1', name: 'Kyoto, Japan', subtitle: 'Japan · Culture', image: IMAGES.kyoto, kind: 'Destinations', rating: 4.9 },
-{ id: 's2', name: 'Santorini, Greece', subtitle: 'Greece · Islands', image: IMAGES.santorini, kind: 'Destinations', rating: 4.8 },
-{ id: 's3', name: 'Machiya Boutique Stay', subtitle: 'Gion, Kyoto · ₹12,400/night', image: IMAGES.culture, kind: 'Hotels', rating: 4.7 },
+{ id: 's1', name: 'Mumbai, India', subtitle: 'India · Culture', image: IMAGES.mumbai, kind: 'Destinations', rating: 4.9 },
+{ id: 's2', name: 'Kolkata, India', subtitle: 'India · Cities', image: IMAGES.kolkata, kind: 'Destinations', rating: 4.8 },
+{ id: 's3', name: 'Marine Drive Boutique Stay', subtitle: 'Mumbai · ₹8,400/night', image: IMAGES.culture, kind: 'Hotels', rating: 4.7 },
 { id: 's4', name: 'Backwater Villa', subtitle: 'Alleppey, Kerala · ₹6,800/night', image: IMAGES.kerala, kind: 'Hotels', rating: 4.6 },
 { id: 's5', name: 'Gunpowder', subtitle: 'South Indian · ₹900 per person', image: IMAGES.foodLocal, kind: 'Restaurants', rating: 4.8 },
-{ id: 's6', name: 'Sakura Izakaya', subtitle: 'Japanese · ₹2,600 per person', image: IMAGES.foodFine, kind: 'Restaurants', rating: 4.9 },
+{ id: 's6', name: 'Bombay Canteen', subtitle: 'Modern Indian · ₹2,600 per person', image: IMAGES.foodFine, kind: 'Restaurants', rating: 4.9 },
 { id: 's7', name: 'Sunrise Ridge Trek', subtitle: 'Manali · 4 hrs', image: IMAGES.trek, kind: 'Activities', rating: 4.8 },
 { id: 's8', name: 'Old City Heritage Walk', subtitle: 'Panjim · 2.5 hrs', image: IMAGES.culture, kind: 'Activities', rating: 4.6 }];

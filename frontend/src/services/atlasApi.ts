@@ -187,92 +187,61 @@ export async function generateTripPlan(prefs: PlannerPreferences): Promise<TripP
   };
 }
 
-/** POST /assistant/message */
+/** POST /assistant/message  → POST /api/chat (FastAPI + Gemini) */
 export async function sendAssistantMessage(text: string): Promise<ChatMessage> {
-  await latency(1100);
-  const lower = text.toLowerCase();
+  // Base URL from Vite env variable; falls back to localhost:8000 for safety.
+  const apiUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000';
+  const endpoint = `${apiUrl}/api/chat`;
 
-  if (lower.includes('restaurant') || lower.includes('food') || lower.includes('eat')) {
-    return {
-      id: uid('m'),
-      role: 'assistant',
-      content:
-      'Based on community reviews near your stay, these three consistently rate highest for authentic local food. Gunpowder is the strongest match for your vegetarian preference.',
-      time: timeNow(),
-      cards: restaurants.slice(0, 3).map((r) => ({
-        kind: 'restaurant' as const,
-        title: r.name,
-        subtitle: `${r.cuisine} · ${r.city}`,
-        meta: `${r.distanceKm} km away`,
-        image: r.image,
-        rating: r.rating,
-        price: r.pricePerPerson
-      }))
-    };
-  }
+  let responseText: string;
 
-  if (lower.includes('weather')) {
-    return {
-      id: uid('m'),
-      role: 'assistant',
-      content:
-      'Tomorrow looks clear until late afternoon, with a short shower window around 16:00. I have moved your outdoor activity earlier in the draft plan.',
-      time: timeNow(),
-      cards: [
-      { kind: 'weather', title: 'Tomorrow · 29°C', subtitle: 'Partly cloudy, shower after 16:00', meta: 'Humidity 68% · Wind 12 km/h' }]
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+      // Abort after 60 s so the UI never hangs indefinitely
+      signal: AbortSignal.timeout(60_000),
+    });
 
-    };
-  }
-
-  if (lower.includes('budget') || lower.includes('₹') || lower.includes('under')) {
-    return {
-      id: uid('m'),
-      role: 'assistant',
-      content:
-      'A 5-day plan under ₹30,000 for two is achievable in Goa or Manali. Here is how the Budget Optimizer would split it, with a ₹2,400 buffer left over.',
-      time: timeNow(),
-      cards: [
-      { kind: 'budget', title: 'Optimised split', subtitle: 'Stay ₹9,600 · Travel ₹7,800 · Food ₹5,400 · Activities ₹4,800', meta: 'Buffer ₹2,400', price: 27600 },
-      { kind: 'destination', title: 'Goa', subtitle: 'India · 4–5 days', meta: 'From ₹18,500', image: IMAGES.goa, rating: 4.6 }]
-
-    };
-  }
-
-  if (lower.includes('hidden') || lower.includes('quiet') || lower.includes('crowd')) {
-    return {
-      id: uid('m'),
-      role: 'assistant',
-      content:
-      'You said you prefer quiet places, so I filtered out anything with high reported crowd levels. These two have strong ratings and low footfall.',
-      time: timeNow(),
-      cards: [
-      { kind: 'activity', title: activities[4].name, subtitle: activities[4].location, meta: `${activities[4].duration} · low crowds`, image: activities[4].image, rating: activities[4].rating, price: activities[4].price },
-      { kind: 'activity', title: activities[0].name, subtitle: activities[0].location, meta: `${activities[0].duration} · sunrise slot`, image: activities[0].image, rating: activities[0].rating, price: activities[0].price }]
-
-    };
-  }
-
-  if (lower.includes('pack')) {
-    return {
-      id: uid('m'),
-      role: 'assistant',
-      content:
-      'For this destination and season, pack light breathable layers, one warm layer for evenings, reef-safe sunscreen, a reusable bottle, a power bank and any prescription medicines. Rain cover recommended for two of your days.',
-      time: timeNow()
-    };
+    if (!res.ok) {
+      // Try to surface a meaningful message from the backend if available
+      let detail = `Server responded with status ${res.status}.`;
+      try {
+        const errorBody = await res.json();
+        if (errorBody?.detail) detail = String(errorBody.detail);
+      } catch {
+        // ignore JSON parse errors — use the default message
+      }
+      responseText = `Sorry, I ran into a problem: ${detail} Please try again in a moment.`;
+    } else {
+      const data = await res.json();
+      if (typeof data?.response === 'string' && data.response.trim()) {
+        responseText = data.response;
+      } else {
+        responseText = 'I received an unexpected response. Please try again.';
+      }
+    }
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === 'TimeoutError') {
+      responseText = 'The request timed out. The AI is taking longer than usual — please try again.';
+    } else if (err instanceof TypeError) {
+      // fetch throws TypeError on network failure / CORS / no server
+      responseText =
+        'Could not reach the ATLAS server. Make sure the backend is running on http://localhost:8000.';
+    } else {
+      responseText = 'An unexpected error occurred. Please try again.';
+    }
   }
 
   return {
     id: uid('m'),
     role: 'assistant',
-    content:
-    'Got it. I have passed that to the Planner Agent — it will coordinate the Travel, Hotel, Food and Activity agents and come back with a draft. Would you like me to prioritise budget, comfort or experiences?',
+    content: responseText,
     time: timeNow(),
-    cards: [
-    { kind: 'destination', title: destinations[4].name, subtitle: `${destinations[4].country} · ${destinations[4].durationDays} days`, meta: `From ₹${destinations[4].budgetFrom.toLocaleString('en-IN')}`, image: destinations[4].image, rating: destinations[4].rating }]
-
   };
 }
+
 
 /** POST /lost-found */
 export async function submitLostFound(item: Omit<LostFoundItem, 'id' | 'status'>): Promise<LostFoundItem> {
