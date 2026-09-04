@@ -18,7 +18,7 @@ import { BudgetCard, CommunityInsight, WeatherCard } from '../components/cards/C
 import { BookingFlow } from '../components/booking/BookingFlow';
 import { Badge, Button, Card, Skeleton } from '../components/ui/Primitives';
 import { useAtlas } from '../contexts/AtlasContext';
-import { generateTripPlan } from '../services/atlasApi';
+import { generateTripPlan, persistTripPlan } from '../services/atlasApi';
 import { formatRange, inr } from '../utils/format';
 
 export function ItineraryPage() {
@@ -84,6 +84,20 @@ export function ItineraryPage() {
     toast({ title: 'Itinerary regenerated', description: 'Agents re-ran with the same constraints.', tone: 'success' });
   };
 
+  const saveTrip = async () => {
+    const token = localStorage.getItem('atlas_access_token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    try {
+      await persistTripPlan(plan, token);
+      toast({ title: 'Trip saved', description: 'Added to My Trips.', tone: 'success' });
+    } catch (error) {
+      toast({ title: 'Could not save trip', description: error instanceof Error ? error.message : undefined, tone: 'error' });
+    }
+  };
+
   const summary = [
   { label: 'Estimated total cost', value: inr(plan.estimatedCost) },
   { label: 'Travel time', value: '6h 40m total' },
@@ -125,7 +139,7 @@ export function ItineraryPage() {
             size="sm"
             variant="secondary"
             icon={<SaveIcon className="h-3.5 w-3.5" />}
-            onClick={() => toast({ title: 'Trip saved', description: 'Added to My Trips.', tone: 'success' })}>
+            onClick={saveTrip}>
             
             Save Trip
           </Button>

@@ -1,7 +1,18 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Booking, LostFoundItem, TripPlan, Trip } from '../types';
-import { bookings as seedBookings, lostFoundItems as seedLostFound, savedPlaces, trips as seedTrips } from '../data/catalog';
+import { Booking, LostFoundItem, TripPlan, Trip, SavedPlace } from '../types';
+import { bookings as seedBookings, lostFoundItems as seedLostFound } from '../data/catalog';
 import { uid } from '../utils/format';
+import {
+  AuthUser,
+  deletePersistedSavedPlace,
+  deletePersistedTrip,
+  fetchCurrentUser,
+  fetchPersistedSavedPlaces,
+  fetchPersistedTrips,
+  loginUser,
+  registerUser,
+  savePersistedPlace
+} from '../services/atlasApi';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -13,6 +24,11 @@ export interface Toast {
 }
 
 interface AtlasState {
+  authUser: AuthUser | null;
+  authLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  logout: () => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
   isDark: boolean;
@@ -21,7 +37,7 @@ interface AtlasState {
   saved: string[];
   toggleSaved: (id: string, label?: string) => void;
   isSaved: (id: string) => boolean;
-  savedItems: typeof savedPlaces;
+  savedItems: SavedPlace[];
   removeSavedItem: (id: string) => void;
   trips: Trip[];
   removeTrip: (id: string) => void;
@@ -40,11 +56,13 @@ interface AtlasState {
 const AtlasContext = createContext<AtlasState | null>(null);
 
 export function AtlasProvider({ children }: {children: React.ReactNode;}) {
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [theme, setTheme] = useState<Theme>('light');
   const [language, setLanguage] = useState('en');
-  const [saved, setSaved] = useState<string[]>(['kyoto', 'santorini', 'a1']);
-  const [savedItems, setSavedItems] = useState(savedPlaces);
-  const [trips, setTrips] = useState<Trip[]>(seedTrips);
+  const [saved, setSaved] = useState<string[]>([]);
+  const [savedItems, setSavedItems] = useState<SavedPlace[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
   const [bookings, setBookings] = useState<Booking[]>(seedBookings);
   const [lostFound, setLostFound] = useState<LostFoundItem[]>(seedLostFound);
   const [plan, setPlan] = useState<TripPlan | null>(null);
@@ -60,6 +78,53 @@ export function AtlasProvider({ children }: {children: React.ReactNode;}) {
     const root = document.documentElement;
     root.classList.toggle('dark', isDark);
   }, [isDark]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('atlas_access_token');
+    if (!token) {
+      setAuthLoading(false);
+      return;
+    }
+    Promise.all([fetchCurrentUser(token), fetchPersistedTrips(token), fetchPersistedSavedPlaces(token)])
+      .then(([user, persistedTrips, persistedPlaces]) => {
+        setAuthUser(user);
+        setTrips(persistedTrips);
+        setSavedItems(persistedPlaces);
+        setSaved(persistedPlaces.map((place) => place.id));
+      })
+      .catch(() => {
+        localStorage.removeItem('atlas_access_token');
+      })
+      .finally(() => setAuthLoading(false));
+  }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const result = await loginUser(email, password);
+    localStorage.setItem('atlas_access_token', result.access_token);
+    const [user, persistedTrips, persistedPlaces] = await Promise.all([
+      fetchCurrentUser(result.access_token),
+      fetchPersistedTrips(result.access_token),
+      fetchPersistedSavedPlaces(result.access_token)
+    ]);
+    setAuthUser(user);
+    setTrips(persistedTrips);
+    setSavedItems(persistedPlaces);
+    setSaved(persistedPlaces.map((place) => place.id));
+  }, []);
+
+  const register = useCallback(async (name: string, email: string, password: string) => {
+    await registerUser({ name, email, password });
+    await login(email, password);
+  }, [login]);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('atlas_access_token');
+    setAuthUser(null);
+    setTrips([]);
+    setSaved([]);
+    setSavedItems([]);
+    setPlan(null);
+  }, []);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -78,6 +143,13 @@ export function AtlasProvider({ children }: {children: React.ReactNode;}) {
     (id: string, label?: string) => {
       setSaved((prev) => {
         const exists = prev.includes(id);
+        const token = localStorage.getItem('atlas_access_token');
+        if (token && exists) {
+          deletePersistedSavedPlace(id, token).catch(() => toast({ title: 'Could not remove saved place', tone: 'error' }));
+        } else if (token) {
+          savePersistedPlace({ place_id: id, name: label ?? id, type: 'destination', category: 'Destinations' }, token)
+            .catch(() => toast({ title: 'Could not save place', tone: 'error' }));
+        }
         toast({
           title: exists ? 'Removed from saved' : 'Saved',
           description: label ? `${label} ${exists ? 'removed from' : 'added to'} your places.` : undefined,
@@ -92,6 +164,11 @@ export function AtlasProvider({ children }: {children: React.ReactNode;}) {
   const value = useMemo<AtlasState>(
     () => ({
       theme,
+      authUser,
+      authLoading,
+      login,
+      register,
+      logout,
       setTheme,
       isDark,
       language,
@@ -104,12 +181,16 @@ export function AtlasProvider({ children }: {children: React.ReactNode;}) {
       isSaved: (id: string) => saved.includes(id),
       savedItems,
       removeSavedItem: (id: string) => {
+        const token = localStorage.getItem('atlas_access_token');
         setSavedItems((prev) => prev.filter((p) => p.id !== id));
+        if (token) deletePersistedSavedPlace(id, token).catch(() => toast({ title: 'Could not remove saved place', tone: 'error' }));
         toast({ title: 'Removed', description: 'Place removed from your collection.', tone: 'info' });
       },
       trips,
       removeTrip: (id: string) => {
+        const token = localStorage.getItem('atlas_access_token');
         setTrips((prev) => prev.filter((t) => t.id !== id));
+        if (token) deletePersistedTrip(id, token).catch(() => toast({ title: 'Could not delete trip', tone: 'error' }));
         toast({ title: 'Trip deleted', tone: 'info' });
       },
       bookings,
@@ -126,7 +207,7 @@ export function AtlasProvider({ children }: {children: React.ReactNode;}) {
       toast,
       dismissToast
     }),
-    [theme, isDark, language, saved, savedItems, trips, bookings, lostFound, plan, toasts, toggleSaved, toast, dismissToast]
+    [theme, isDark, language, saved, savedItems, trips, bookings, lostFound, plan, toasts, authUser, authLoading, login, register, logout, toggleSaved, toast, dismissToast]
   );
 
   return <AtlasContext.Provider value={value}>{children}</AtlasContext.Provider>;

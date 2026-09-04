@@ -17,6 +17,7 @@ import { SettingsPage } from './pages/Settings';
 import { AboutPage } from './pages/About';
 import { DashboardPage } from './pages/Dashboard';
 import { FoodPage } from './pages/Food';
+import { AuthPage } from './pages/Auth';
 import { ActivitiesPage } from './pages/Activities';
 
 export function App() {
@@ -37,6 +38,8 @@ export function App() {
             element={
             <Shell withFooter>
                 <AboutPage />
+                <Route path="/login" element={<Shell><AuthPage /></Shell>} />
+                <Route path="/register" element={<Shell><AuthPage /></Shell>} />
               </Shell>
             } />
           

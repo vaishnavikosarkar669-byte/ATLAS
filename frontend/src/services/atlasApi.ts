@@ -23,6 +23,122 @@ import { bookingReference, timeNow, uid } from '../utils/format';
 
 const latency = (ms = 320) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const apiUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000';
+
+async function apiRequest<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
+  const response = await fetch(`${apiUrl}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init.headers
+    }
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(typeof body.detail === 'string' ? body.detail : `Request failed (${response.status})`);
+  }
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+}
+
+export async function registerUser(input: { name: string; email: string; password: string }): Promise<AuthUser> {
+  return apiRequest<AuthUser>('/api/auth/register', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export async function loginUser(email: string, password: string): Promise<{ access_token: string; token_type: string }> {
+  const body = new URLSearchParams({ username: email, password });
+  return apiRequest('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
+  });
+}
+
+export async function fetchCurrentUser(token: string): Promise<AuthUser> {
+  return apiRequest<AuthUser>('/api/auth/me', {}, token);
+}
+
+export async function fetchPersistedTrips(token: string): Promise<Trip[]> {
+  const data = await apiRequest<Array<Record<string, unknown>>>('/api/trips', {}, token);
+  return data.map((trip) => ({
+    id: String(trip.id),
+    destination: String(trip.destination),
+    country: '',
+    image: IMAGES.goa,
+    startDate: String(trip.start_date),
+    endDate: String(trip.end_date),
+    travelers: Number(trip.travelers),
+    budget: Number(trip.budget ?? 0),
+    status: trip.status === 'past' ? 'past' : 'upcoming',
+    progress: 0
+  }));
+}
+
+export async function fetchPersistedSavedPlaces(token: string): Promise<SavedPlace[]> {
+  const data = await apiRequest<Array<Record<string, unknown>>>('/api/saved-places', {}, token);
+  return data.map((place) => ({
+    id: String(place.place_id),
+    name: String(place.name),
+    subtitle: String(place.description ?? ''),
+    image: String(place.image_url ?? IMAGES.goa),
+    kind: (String(place.category ?? place.type) as SavedPlace['kind']),
+    rating: Number(place.rating ?? 0)
+  }));
+}
+
+export async function deletePersistedTrip(id: string, token: string): Promise<void> {
+  await apiRequest<void>(`/api/trips/${id}`, { method: 'DELETE' }, token);
+}
+
+export async function deletePersistedSavedPlace(id: string, token: string): Promise<void> {
+  await apiRequest<void>(`/api/saved-places/${encodeURIComponent(id)}`, { method: 'DELETE' }, token);
+}
+
+export async function savePersistedPlace(
+  place: { place_id: string; name: string; type: string; category?: string },
+  token: string
+): Promise<void> {
+  await apiRequest<void>('/api/saved-places', { method: 'POST', body: JSON.stringify(place) }, token);
+}
+
+export async function persistTripPlan(plan: TripPlan, token: string): Promise<string> {
+  const trip = await apiRequest<{ id: string }>('/api/trips', {
+    method: 'POST',
+    body: JSON.stringify({
+      title: `Trip to ${plan.destination}`,
+      destination: plan.destination,
+      start_date: plan.startDate,
+      end_date: plan.endDate,
+      travelers: plan.travelers,
+      budget: plan.budget,
+      preferences: {},
+      currency: 'INR',
+      status: 'upcoming'
+    })
+  }, token);
+  for (const day of plan.days) {
+    await apiRequest(`/api/trips/${trip.id}/itinerary`, {
+      method: 'POST',
+      body: JSON.stringify({
+        day_number: day.day,
+        date: day.date,
+        title: day.title,
+        description: day.items.map((item) => `${item.time} ${item.title} — ${item.location}`).join('\n'),
+        estimated_cost: day.items.reduce((total, item) => total + item.cost, 0)
+      })
+    }, token);
+  }
+  return trip.id;
+}
+
 /** GET /destinations */
 export async function fetchDestinations(): Promise<Destination[]> {
   await latency();
