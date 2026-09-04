@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, ForeignKey, Date, Float, Integer
+from sqlalchemy import Column, String, ForeignKey, Date, Float, Integer, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -15,3 +15,8 @@ class ItineraryDay(Base):
     estimated_cost = Column(Float, nullable=True)
 
     trip = relationship("Trip", back_populates="itinerary_days")
+
+    __table_args__ = (
+        UniqueConstraint("trip_id", "day_number", name="uq_itinerary_day_trip_number"),
+        Index("ix_itinerary_day_trip_id", "trip_id"),
+    )

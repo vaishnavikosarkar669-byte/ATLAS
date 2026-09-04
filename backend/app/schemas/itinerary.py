@@ -24,3 +24,4 @@ class ItineraryDayResponse(ItineraryDayBase):
 
     class Config:
         from_attributes = True
+

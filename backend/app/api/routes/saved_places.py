@@ -45,3 +45,4 @@ def delete_saved_place(place_id: str, db: Session = Depends(get_db), current_use
     db.delete(place)
     db.commit()
     return None
+

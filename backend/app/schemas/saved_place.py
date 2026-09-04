@@ -8,6 +8,10 @@ class SavedPlaceBase(BaseModel):
     name: str
     type: str
     description: Optional[str] = None
+    category: Optional[str] = None
+    location: Optional[str] = None
+    image_url: Optional[str] = None
+    rating: Optional[float] = None
 
 class SavedPlaceCreate(SavedPlaceBase):
     pass

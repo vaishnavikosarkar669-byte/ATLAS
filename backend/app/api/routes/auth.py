@@ -16,7 +16,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == user_in.email).first()
+    email = str(user_in.email).strip().lower()
+    user = db.query(User).filter(User.email == email).first()
     if user:
         raise HTTPException(
             status_code=400,
@@ -24,7 +25,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         )
     
     user = User(
-        email=user_in.email,
+        email=email,
         name=user_in.name,
         password_hash=get_password_hash(user_in.password),
     )
@@ -40,7 +41,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
-    user = db.query(User).filter(User.email == form_data.username).first()
+    user = db.query(User).filter(User.email == form_data.username.strip().lower()).first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
         

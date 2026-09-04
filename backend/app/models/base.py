@@ -9,3 +9,4 @@ class CustomBase:
         return re.sub(r'(?<!^)(?=[A-Z])', '_', cls.__name__).lower()
 
 Base = declarative_base(cls=CustomBase)
+

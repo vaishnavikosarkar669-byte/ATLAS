@@ -1,7 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from uuid import UUID
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 from app.schemas.itinerary import ItineraryDayResponse
 
 class TripBase(BaseModel):
@@ -11,6 +11,7 @@ class TripBase(BaseModel):
     end_date: date
     travelers: int = 1
     budget: Optional[float] = None
+    preferences: dict[str, Any] = Field(default_factory=dict)
     currency: str = "USD"
     status: str = "planning"
 
@@ -24,6 +25,7 @@ class TripUpdate(BaseModel):
     end_date: Optional[date] = None
     travelers: Optional[int] = None
     budget: Optional[float] = None
+    preferences: Optional[dict[str, Any]] = None
     currency: Optional[str] = None
     status: Optional[str] = None
 

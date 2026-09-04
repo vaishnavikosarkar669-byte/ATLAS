@@ -32,6 +32,15 @@ def get_trip(trip_id: UUID, db: Session = Depends(get_db), current_user: User = 
         raise HTTPException(status_code=404, detail="Trip not found")
     return trip
 
+@router.get("/{trip_id}/itinerary", response_model=List[ItineraryDayResponse])
+def get_itinerary(trip_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == current_user.id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    return db.query(ItineraryDay).filter(
+        ItineraryDay.trip_id == trip.id
+    ).order_by(ItineraryDay.day_number).all()
+
 @router.patch("/{trip_id}", response_model=TripResponse)
 def update_trip(trip_id: UUID, trip_in: TripUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == current_user.id).first()

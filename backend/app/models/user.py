@@ -16,3 +16,4 @@ class User(Base):
 
     trips = relationship("Trip", back_populates="user", cascade="all, delete-orphan")
     saved_places = relationship("SavedPlace", back_populates="user", cascade="all, delete-orphan")
+

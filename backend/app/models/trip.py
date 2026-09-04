@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, ForeignKey, Date, Float, Integer
+from sqlalchemy import Column, String, DateTime, ForeignKey, Date, Float, Integer, JSON, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -15,6 +15,7 @@ class Trip(Base):
     end_date = Column(Date, nullable=False)
     travelers = Column(Integer, default=1, nullable=False)
     budget = Column(Float, nullable=True)
+    preferences = Column(JSON, nullable=False, default=dict)
     currency = Column(String, default="USD", nullable=False)
     status = Column(String, default="planning", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -22,3 +23,7 @@ class Trip(Base):
 
     user = relationship("User", back_populates="trips")
     itinerary_days = relationship("ItineraryDay", back_populates="trip", cascade="all, delete-orphan", order_by="ItineraryDay.day_number")
+
+    __table_args__ = (
+        Index("ix_trip_user_created_at", "user_id", "created_at"),
+    )
