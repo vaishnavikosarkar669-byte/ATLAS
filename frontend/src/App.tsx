@@ -38,10 +38,10 @@ export function App() {
             element={
             <Shell withFooter>
                 <AboutPage />
-                <Route path="/login" element={<Shell><AuthPage /></Shell>} />
-                <Route path="/register" element={<Shell><AuthPage /></Shell>} />
               </Shell>
             } />
+          <Route path="/login" element={<Shell><AuthPage /></Shell>} />
+          <Route path="/register" element={<Shell><AuthPage /></Shell>} />
           
           <Route
             path="/assistant"

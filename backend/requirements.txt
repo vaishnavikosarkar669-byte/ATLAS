@@ -6,8 +6,10 @@ sqlalchemy
 alembic
 psycopg[binary]
 passlib[bcrypt]
+bcrypt<4.1
 pyjwt
 pytest
 httpx
 google-generativeai
 python-dotenv
+python-multipart
