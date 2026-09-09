@@ -44,7 +44,7 @@ export function Footer() {
             <span className="font-display text-[19px] font-extrabold text-ink">ATLAS</span>
           </div>
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted">
-            An AI-powered multi-agent travel planning and decision support platform. Explore. Plan. Experience.
+            An AI-powered multi-agent travel planning and decision support platform. Where Travels Meets AI.
           </p>
         </div>
         {columns.map((col) =>

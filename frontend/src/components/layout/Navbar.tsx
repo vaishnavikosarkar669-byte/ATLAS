@@ -17,7 +17,7 @@ export const primaryNav = [
 
 
 export function Navbar() {
-  const { isDark, setTheme, theme, language, setLanguage, toast } = useAtlas();
+  const { isDark, setTheme, theme, language, setLanguage, toast, authUser, logout } = useAtlas();
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
@@ -31,7 +31,7 @@ export function Navbar() {
           <span className="leading-tight">
             <span className="block font-display text-[19px] font-extrabold tracking-tight text-ink">ATLAS</span>
             <span className="hidden text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted sm:block">
-              Explore. Plan. Experience.
+              Where Travels Meets AI
             </span>
           </span>
         </Link>
@@ -96,8 +96,9 @@ export function Navbar() {
             aria-label="Your profile"
             className="flex h-10 w-10 items-center justify-center rounded-full bg-brand/10 text-[13px] font-bold text-brand ring-2 ring-transparent transition hover:ring-brand/30">
             
-            EX
+            {authUser ? authUser.name.slice(0, 2).toUpperCase() : 'EX'}
           </Link>
+          {authUser ? <button onClick={logout} className="hidden text-sm font-semibold text-muted hover:text-ink sm:block">Log out</button> : <Link to="/login" className="hidden text-sm font-semibold text-brand sm:block">Log in</Link>}
           <button
             onClick={() => setMobileOpen((o) => !o)}
             aria-label="Toggle navigation menu"

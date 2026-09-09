@@ -23,6 +23,122 @@ import { bookingReference, timeNow, uid } from '../utils/format';
 
 const latency = (ms = 320) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const apiUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000';
+
+async function apiRequest<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
+  const response = await fetch(`${apiUrl}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init.headers
+    }
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(typeof body.detail === 'string' ? body.detail : `Request failed (${response.status})`);
+  }
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+}
+
+export async function registerUser(input: { name: string; email: string; password: string }): Promise<AuthUser> {
+  return apiRequest<AuthUser>('/api/auth/register', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export async function loginUser(email: string, password: string): Promise<{ access_token: string; token_type: string }> {
+  const body = new URLSearchParams({ username: email, password });
+  return apiRequest('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
+  });
+}
+
+export async function fetchCurrentUser(token: string): Promise<AuthUser> {
+  return apiRequest<AuthUser>('/api/auth/me', {}, token);
+}
+
+export async function fetchPersistedTrips(token: string): Promise<Trip[]> {
+  const data = await apiRequest<Array<Record<string, unknown>>>('/api/trips', {}, token);
+  return data.map((trip) => ({
+    id: String(trip.id),
+    destination: String(trip.destination),
+    country: '',
+    image: IMAGES.goa,
+    startDate: String(trip.start_date),
+    endDate: String(trip.end_date),
+    travelers: Number(trip.travelers),
+    budget: Number(trip.budget ?? 0),
+    status: trip.status === 'past' ? 'past' : 'upcoming',
+    progress: 0
+  }));
+}
+
+export async function fetchPersistedSavedPlaces(token: string): Promise<SavedPlace[]> {
+  const data = await apiRequest<Array<Record<string, unknown>>>('/api/saved-places', {}, token);
+  return data.map((place) => ({
+    id: String(place.place_id),
+    name: String(place.name),
+    subtitle: String(place.description ?? ''),
+    image: String(place.image_url ?? IMAGES.goa),
+    kind: (String(place.category ?? place.type) as SavedPlace['kind']),
+    rating: Number(place.rating ?? 0)
+  }));
+}
+
+export async function deletePersistedTrip(id: string, token: string): Promise<void> {
+  await apiRequest<void>(`/api/trips/${id}`, { method: 'DELETE' }, token);
+}
+
+export async function deletePersistedSavedPlace(id: string, token: string): Promise<void> {
+  await apiRequest<void>(`/api/saved-places/${encodeURIComponent(id)}`, { method: 'DELETE' }, token);
+}
+
+export async function savePersistedPlace(
+  place: { place_id: string; name: string; type: string; category?: string },
+  token: string
+): Promise<void> {
+  await apiRequest<void>('/api/saved-places', { method: 'POST', body: JSON.stringify(place) }, token);
+}
+
+export async function persistTripPlan(plan: TripPlan, token: string): Promise<string> {
+  const trip = await apiRequest<{ id: string }>('/api/trips', {
+    method: 'POST',
+    body: JSON.stringify({
+      title: `Trip to ${plan.destination}`,
+      destination: plan.destination,
+      start_date: plan.startDate,
+      end_date: plan.endDate,
+      travelers: plan.travelers,
+      budget: plan.budget,
+      preferences: {},
+      currency: 'INR',
+      status: 'upcoming'
+    })
+  }, token);
+  for (const day of plan.days) {
+    await apiRequest(`/api/trips/${trip.id}/itinerary`, {
+      method: 'POST',
+      body: JSON.stringify({
+        day_number: day.day,
+        date: day.date,
+        title: day.title,
+        description: day.items.map((item) => `${item.time} ${item.title} — ${item.location}`).join('\n'),
+        estimated_cost: day.items.reduce((total, item) => total + item.cost, 0)
+      })
+    }, token);
+  }
+  return trip.id;
+}
+
 /** GET /destinations */
 export async function fetchDestinations(): Promise<Destination[]> {
   await latency();
@@ -187,92 +303,61 @@ export async function generateTripPlan(prefs: PlannerPreferences): Promise<TripP
   };
 }
 
-/** POST /assistant/message */
+/** POST /assistant/message  → POST /api/chat (FastAPI + Gemini) */
 export async function sendAssistantMessage(text: string): Promise<ChatMessage> {
-  await latency(1100);
-  const lower = text.toLowerCase();
+  // Base URL from Vite env variable; falls back to localhost:8000 for safety.
+  const apiUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000';
+  const endpoint = `${apiUrl}/api/chat`;
 
-  if (lower.includes('restaurant') || lower.includes('food') || lower.includes('eat')) {
-    return {
-      id: uid('m'),
-      role: 'assistant',
-      content:
-      'Based on community reviews near your stay, these three consistently rate highest for authentic local food. Gunpowder is the strongest match for your vegetarian preference.',
-      time: timeNow(),
-      cards: restaurants.slice(0, 3).map((r) => ({
-        kind: 'restaurant' as const,
-        title: r.name,
-        subtitle: `${r.cuisine} · ${r.city}`,
-        meta: `${r.distanceKm} km away`,
-        image: r.image,
-        rating: r.rating,
-        price: r.pricePerPerson
-      }))
-    };
-  }
+  let responseText: string;
 
-  if (lower.includes('weather')) {
-    return {
-      id: uid('m'),
-      role: 'assistant',
-      content:
-      'Tomorrow looks clear until late afternoon, with a short shower window around 16:00. I have moved your outdoor activity earlier in the draft plan.',
-      time: timeNow(),
-      cards: [
-      { kind: 'weather', title: 'Tomorrow · 29°C', subtitle: 'Partly cloudy, shower after 16:00', meta: 'Humidity 68% · Wind 12 km/h' }]
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+      // Abort after 60 s so the UI never hangs indefinitely
+      signal: AbortSignal.timeout(60_000),
+    });
 
-    };
-  }
-
-  if (lower.includes('budget') || lower.includes('₹') || lower.includes('under')) {
-    return {
-      id: uid('m'),
-      role: 'assistant',
-      content:
-      'A 5-day plan under ₹30,000 for two is achievable in Goa or Manali. Here is how the Budget Optimizer would split it, with a ₹2,400 buffer left over.',
-      time: timeNow(),
-      cards: [
-      { kind: 'budget', title: 'Optimised split', subtitle: 'Stay ₹9,600 · Travel ₹7,800 · Food ₹5,400 · Activities ₹4,800', meta: 'Buffer ₹2,400', price: 27600 },
-      { kind: 'destination', title: 'Goa', subtitle: 'India · 4–5 days', meta: 'From ₹18,500', image: IMAGES.goa, rating: 4.6 }]
-
-    };
-  }
-
-  if (lower.includes('hidden') || lower.includes('quiet') || lower.includes('crowd')) {
-    return {
-      id: uid('m'),
-      role: 'assistant',
-      content:
-      'You said you prefer quiet places, so I filtered out anything with high reported crowd levels. These two have strong ratings and low footfall.',
-      time: timeNow(),
-      cards: [
-      { kind: 'activity', title: activities[4].name, subtitle: activities[4].location, meta: `${activities[4].duration} · low crowds`, image: activities[4].image, rating: activities[4].rating, price: activities[4].price },
-      { kind: 'activity', title: activities[0].name, subtitle: activities[0].location, meta: `${activities[0].duration} · sunrise slot`, image: activities[0].image, rating: activities[0].rating, price: activities[0].price }]
-
-    };
-  }
-
-  if (lower.includes('pack')) {
-    return {
-      id: uid('m'),
-      role: 'assistant',
-      content:
-      'For this destination and season, pack light breathable layers, one warm layer for evenings, reef-safe sunscreen, a reusable bottle, a power bank and any prescription medicines. Rain cover recommended for two of your days.',
-      time: timeNow()
-    };
+    if (!res.ok) {
+      // Try to surface a meaningful message from the backend if available
+      let detail = `Server responded with status ${res.status}.`;
+      try {
+        const errorBody = await res.json();
+        if (errorBody?.detail) detail = String(errorBody.detail);
+      } catch {
+        // ignore JSON parse errors — use the default message
+      }
+      responseText = `Sorry, I ran into a problem: ${detail} Please try again in a moment.`;
+    } else {
+      const data = await res.json();
+      if (typeof data?.response === 'string' && data.response.trim()) {
+        responseText = data.response;
+      } else {
+        responseText = 'I received an unexpected response. Please try again.';
+      }
+    }
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === 'TimeoutError') {
+      responseText = 'The request timed out. The AI is taking longer than usual — please try again.';
+    } else if (err instanceof TypeError) {
+      // fetch throws TypeError on network failure / CORS / no server
+      responseText =
+        'Could not reach the ATLAS server. Make sure the backend is running on http://localhost:8000.';
+    } else {
+      responseText = 'An unexpected error occurred. Please try again.';
+    }
   }
 
   return {
     id: uid('m'),
     role: 'assistant',
-    content:
-    'Got it. I have passed that to the Planner Agent — it will coordinate the Travel, Hotel, Food and Activity agents and come back with a draft. Would you like me to prioritise budget, comfort or experiences?',
+    content: responseText,
     time: timeNow(),
-    cards: [
-    { kind: 'destination', title: destinations[4].name, subtitle: `${destinations[4].country} · ${destinations[4].durationDays} days`, meta: `From ₹${destinations[4].budgetFrom.toLocaleString('en-IN')}`, image: destinations[4].image, rating: destinations[4].rating }]
-
   };
 }
+
 
 /** POST /lost-found */
 export async function submitLostFound(item: Omit<LostFoundItem, 'id' | 'status'>): Promise<LostFoundItem> {

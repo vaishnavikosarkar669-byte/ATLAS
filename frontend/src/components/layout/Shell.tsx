@@ -1,11 +1,12 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, Navigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CalendarCheckIcon, CompassIcon, HomeIcon, LuggageIcon, SparklesIcon } from 'lucide-react';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { Footer } from './Footer';
 import { cn } from '../../utils/format';
+import { useAtlas } from '../../contexts/AtlasContext';
 
 const mobileLinks = [
 { to: '/', label: 'Home', icon: HomeIcon },
@@ -56,6 +57,8 @@ export function Shell({
 
 }: {children: React.ReactNode;withSidebar?: boolean;withFooter?: boolean;contained?: boolean;}) {
   const location = useLocation();
+  const { authUser, authLoading } = useAtlas();
+  if (withSidebar && !authLoading && !authUser) return <Navigate to="/login" replace />;
   return (
     <div className="flex min-h-screen w-full flex-col bg-canvas">
       <Navbar />

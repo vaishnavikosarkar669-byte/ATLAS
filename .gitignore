@@ -1,6 +1,29 @@
+# Python
 *.pyc
+*.pyo
 __pycache__/
-node_modules/
+*.egg-info/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Environment variables — NEVER commit real secrets
 .env
+.env.local
+.env.*.local
+backend/.env
+
+# Frontend build
 dist/
 build/
+
+# Node
+node_modules/
+
+# Misc
+*.log
+.DS_Store
+Thumbs.db

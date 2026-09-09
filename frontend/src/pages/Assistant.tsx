@@ -10,6 +10,7 @@ import {
   StarIcon } from
 'lucide-react';
 import { Badge, Button, Card } from '../components/ui/Primitives';
+import { MarkdownContent } from '../components/MarkdownContent';
 import { suggestedPrompts } from '../data/content';
 import { sendAssistantMessage } from '../services/atlasApi';
 import { ChatCard, ChatMessage, Conversation } from '../types';
@@ -196,7 +197,11 @@ export function AssistantPage() {
                     'rounded-bl-md border border-line bg-surface text-ink'
                   )}>
                   
-                    {m.content}
+                    {m.role === 'user' ? (
+                      m.content
+                    ) : (
+                      <MarkdownContent>{m.content}</MarkdownContent>
+                    )}
                   </div>
                   {m.cards &&
                 <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto pb-1">
@@ -313,7 +318,7 @@ export function AssistantPage() {
               </button>
             </form>
             <p className="mt-2 text-center text-[11.5px] text-muted">
-              ATLAS uses mock data in this prototype · responses are simulated
+              ATLAS AI is powered by Gemini · Suggestions are not confirmed bookings
             </p>
           </div>
         </div>
